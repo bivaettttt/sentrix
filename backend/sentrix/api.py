@@ -1,4 +1,5 @@
 import csv
+import os
 from io import StringIO
 from typing import Annotated, Literal
 from uuid import UUID, uuid4
@@ -7,12 +8,14 @@ from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+from sqlalchemy.exc import OperationalError
 
 from sentrix import cases
 from sentrix import contracts as c
 from sentrix.auth import OPERATIONS, Actor, passwords, require, signin
 from sentrix.db import audit, engine, lock, many, one, query
 from sentrix.detection import RULES, score
+from sentrix.lab import Scenario, run
 from sentrix.service import (
     active_versions,
     create_draft,
@@ -134,7 +137,14 @@ def accounts(actor: Actor):
 def accept(payload: c.Event, actor: Actor, request: Request):
     require(actor, *OPERATIONS)
     with engine.begin() as conn:
-        return ingest(conn, [payload], actor["login"], request.state.id)[0]
+        result = ingest(conn, [payload], actor["login"], request.state.id)[0]
+        if os.getenv("LAB_MODE") == "1" and one(
+            conn,
+            "SELECT source FROM lab_faults WHERE source=:source",
+            source=payload.source,
+        ):
+            raise HTTPException(503, "LAB_TRANSIENT_FAILURE")
+        return result
 
 
 @app.post(API + "/transactions/batch", status_code=201)
@@ -439,7 +449,27 @@ def history(actor: Actor, offset: Offset = 0):
 
 @app.get(API + "/lab")
 def lab_status(actor: Actor):
-    import os
-
     require(actor, "ADMIN")
     return {"enabled": os.getenv("LAB_MODE") == "1"}
+
+
+@app.post(API + "/lab/{scenario}")
+def lab_run(scenario: Scenario, actor: Actor):
+    require(actor, "ADMIN")
+    if os.getenv("LAB_MODE") != "1":
+        raise HTTPException(404, "LAB_DISABLED")
+    with engine.begin() as conn:
+        if not query(conn, "SELECT pg_try_advisory_xact_lock(882443)").scalar_one():
+            raise HTTPException(409, "LAB_BUSY")
+        try:
+            return run(scenario)
+        except RuntimeError as error:
+            raise HTTPException(409, str(error)) from error
+
+
+@app.exception_handler(OperationalError)
+async def database_unavailable(request: Request, error: OperationalError):
+    return JSONResponse(
+        {"detail": "DATABASE_UNAVAILABLE", "request_id": str(request.state.id)},
+        status_code=503,
+    )

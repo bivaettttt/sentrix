@@ -179,6 +179,10 @@ call(
     {"parameters": {"threshold": 0}, "reason": "Invalid threshold"},
     422,
 )
+original = next(r for r in call("rules", "GET", "/rules") if r["code"] == "R-01")
+params = next(
+    v["parameters"] for v in original["versions"] if v["status"] == "PUBLISHED"
+)
 draft = call(
     "rules",
     "POST",
@@ -201,6 +205,15 @@ assert (
     call("manager", "POST", f"/transactions/{first['transaction']}/evaluations")["id"]
     == rechecked["id"]
 )
+restored = call(
+    "rules",
+    "POST",
+    "/rules/R-01/versions",
+    {"parameters": params, "reason": "Restore original demonstration threshold"},
+    201,
+)
+call("rules", "POST", f"/rules/versions/{restored['id']}/submit")
+call("manager", "POST", f"/rules/versions/{restored['id']}/publish")
 old = event(4, 100, instant - timedelta(days=35))
 header = ",".join(old)
 text = header + "\n" + ",".join(str(old[k]) for k in old)

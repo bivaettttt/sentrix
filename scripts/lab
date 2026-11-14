@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+export SENTRIX_LAB_MODE=1 SENTRIX_PORT="${SENTRIX_LAB_PORT:-8131}"
+case "${1:-up}" in
+  up) docker compose -p sentrix-lab up -d --build --wait ;;
+  stop) docker compose -p sentrix-lab down ;;
+  reset) docker compose -p sentrix-lab down -v && docker compose -p sentrix-lab up -d --build --wait ;;
+  *) echo 'Usage: scripts/lab up|stop|reset' >&2; exit 2 ;;
+esac
