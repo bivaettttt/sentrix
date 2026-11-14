@@ -1,0 +1,19 @@
+sequenceDiagram
+  participant Service as Ingestion service
+  participant Detector as Detection module
+  participant DB as PostgreSQL
+  Service->>DB: Read active rule versions and event-time history
+  Service->>Detector: Frozen features and versions
+  Detector->>Detector: Evaluate rule predicates, aggregate anomaly points
+  Detector-->>Service: Factors, score, category and anomaly
+  Service->>DB: Insert immutable assessment by transaction and basis
+  opt Assessment reaches HIGH
+    Service->>DB: Find and lock eligible customer case
+    alt No eligible case
+      Service->>DB: Open case with priority and SLA
+    else Active case
+      Service->>DB: Refresh priority and revision
+    end
+    Service->>DB: Insert alert linked to assessment and case
+  end
+  Service->>DB: Append audit and commit

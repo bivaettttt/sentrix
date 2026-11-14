@@ -1,0 +1,9 @@
+stateDiagram-v2
+  [*] --> Recorded: High or critical assessment
+  Recorded --> Linked: Same database transaction
+  Linked --> Linked: Case revision changes
+  Linked --> Retained: Case closed
+  note right of Retained
+    States are derived from case linkage and closure.
+    The alert itself is append-only at application level.
+  end note

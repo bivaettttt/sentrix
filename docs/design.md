@@ -74,3 +74,18 @@ History uses up to 1,000 events from the prior 30 days, ordered by event time wi
 The SLA mean uses observed triage and closure events. Late queues count open cases beyond the applicable elapsed deadline. False positive share divides cases closed with that outcome by all closed cases. Rule hits are attributed to the version recorded on each assessment. Analyst decisions remain distinct from ground truth.
 
 [Container view](diagrams/containers.mmd) · [Data model](diagrams/data.mmd) · [Ingestion sequence](diagrams/ingest.mmd) · [Case lifecycle](diagrams/cases.mmd) · [OpenAPI](openapi.json) · [Verification](verification.md)
+
+## Error and lifecycle references
+
+| HTTP | Meaning | Client response |
+| --- | --- | --- |
+| 401 | Missing, invalid or expired session | Authenticate and repeat the request |
+| 403 | Operation is outside the role | Use the actor authorized for that operation |
+| 404 | Entity absent or outside assignment scope | Return to the visible queue |
+| 409 | Payload, revision or state conflict | Reload the entity and inspect the recorded change |
+| 422 | Invalid schema or business precondition | Correct the rejected input |
+| 503 | Database error or deliberate Lab rollback | Retry the same event identity |
+
+An alert shares the case lifecycle. It is linked atomically on creation and stays available with the retained decision after closure. The BPMN process models the business workflow. The application executes it through the case state machine.
+
+[Context](diagrams/context.mmd) · [Assessment sequence](diagrams/assessment.mmd) · [Alert state](diagrams/alert.mmd) · [Investigation BPMN](diagrams/investigation.bpmn)

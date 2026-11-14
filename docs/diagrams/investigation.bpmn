@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  id="SentrixDefinitions" targetNamespace="urn:sentrix:analysis">
+  <bpmn:process id="Investigation" name="Sentrix investigation" isExecutable="false">
+    <bpmn:startEvent id="Alert" name="Alert creates or joins an open case"/>
+    <bpmn:userTask id="Assign" name="Assign analyst"/>
+    <bpmn:userTask id="Triage" name="Complete first review"/>
+    <bpmn:userTask id="Work" name="Investigate and record evidence"/>
+    <bpmn:exclusiveGateway id="Enough" name="Evidence sufficient?" default="NeedsMore"/>
+    <bpmn:userTask id="Information" name="Request information and resume"/>
+    <bpmn:userTask id="Submit" name="Submit finding"/>
+    <bpmn:userTask id="Review" name="Review and record disposition"/>
+    <bpmn:exclusiveGateway id="Disposition" name="Decision or return?" default="ToWork"/>
+    <bpmn:endEvent id="Closed" name="Case closed with one recorded decision"/>
+    <bpmn:sequenceFlow id="Created" sourceRef="Alert" targetRef="Assign"/>
+    <bpmn:sequenceFlow id="Assigned" sourceRef="Assign" targetRef="Triage"/>
+    <bpmn:sequenceFlow id="Triaged" sourceRef="Triage" targetRef="Work"/>
+    <bpmn:sequenceFlow id="Evidence" sourceRef="Work" targetRef="Enough"/>
+    <bpmn:sequenceFlow id="Ready" sourceRef="Enough" targetRef="Submit" name="Sufficient"/>
+    <bpmn:sequenceFlow id="NeedsMore" sourceRef="Enough" targetRef="Information" name="More information needed"/>
+    <bpmn:sequenceFlow id="Received" sourceRef="Information" targetRef="Work"/>
+    <bpmn:sequenceFlow id="Submitted" sourceRef="Submit" targetRef="Review"/>
+    <bpmn:sequenceFlow id="Reviewed" sourceRef="Review" targetRef="Disposition"/>
+    <bpmn:sequenceFlow id="ToWork" sourceRef="Disposition" targetRef="Work" name="Return for rework"/>
+    <bpmn:sequenceFlow id="Accepted" sourceRef="Disposition" targetRef="Closed" name="Final decision"/>
+  </bpmn:process>
+</bpmn:definitions>

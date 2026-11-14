@@ -1,0 +1,15 @@
+C4Context
+  title Sentrix system context
+  Person(analyst, "Fraud analyst", "Investigates assigned cases")
+  Person(reviewer, "Senior analyst", "Reviews evidence and decides")
+  Person(manager, "Fraud manager", "Assigns cases and approves rules")
+  Person(editor, "Rules administrator", "Compares and submits versions")
+  Person(admin, "Administrator", "Manages demo users and runs Lab")
+  System(sentrix, "Sentrix", "Synthetic transaction monitoring and investigations")
+  System_Ext(source, "Synthetic event source", "Produces JSON or CSV")
+  Rel(source, sentrix, "Sends events")
+  Rel(analyst, sentrix, "Reviews and submits")
+  Rel(reviewer, sentrix, "Returns or closes")
+  Rel(manager, sentrix, "Assigns and authorizes")
+  Rel(editor, sentrix, "Tests and drafts")
+  Rel(admin, sentrix, "Administers")

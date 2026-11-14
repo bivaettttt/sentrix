@@ -21,7 +21,10 @@ async function nav(page: Page, name: string) {
 async function shot(page: Page, name: string) {
   if (!process.env.SENTRIX_SHOTS) return;
   await page.evaluate(() => document.fonts.ready);
-  await page.locator("body").click({ position: { x: 4, y: 4 } });
+  await page.mouse.move(4, 4);
+  await page.evaluate(() =>
+    (document.activeElement as HTMLElement | null)?.blur(),
+  );
   await page.screenshot({
     path: process.env.SENTRIX_SHOTS + "/" + name + ".png",
   });
@@ -49,6 +52,9 @@ test("a separately authorized reviewer closes an evidence-backed investigation",
       await page.getByLabel("Поиск").fill("review-1");
       await page.getByRole("button", { name: "Применить" }).click();
     });
+  await expect(
+    page.getByRole("link", { name: "review-1", exact: true }),
+  ).toBeVisible();
   await shot(page, "transactions");
   await page.getByRole("link", { name: "review-1", exact: true }).click();
   await expect(page.getByText("R-01 · Крупная операция")).toBeVisible();
@@ -162,4 +168,75 @@ test("rule preview and isolated laboratory render their actual results", async (
     page.getByRole("cell", { name: "CASE_CLOSE", exact: true }).first(),
   ).toBeVisible();
   await shot(page, "audit");
+});
+
+test("CSV import adds one alert and the rule workflow separates author from publisher", async ({
+  page,
+}) => {
+  const external = "browser-" + Date.now();
+  const occurred = new Date();
+  occurred.setUTCHours(12, 0, 0, 0);
+  occurred.setUTCDate(occurred.getUTCDate() - 1);
+  const csv = [
+    "source,external_id,account,amount,currency,category,channel,recipient,occurred_at",
+    [
+      "browser",
+      external,
+      "A-007",
+      20000000,
+      "RUB",
+      "GROCERY",
+      "CARD",
+      "synthetic-shop",
+      occurred.toISOString(),
+    ].join(","),
+  ].join("\n");
+
+  await page.goto("/");
+  await login(page, "manager");
+  await nav(page, "Транзакции");
+  await page.getByRole("button", { name: "Импорт CSV" }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "synthetic.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(csv),
+  });
+  const imported = page.waitForResponse((r) =>
+    r.url().endsWith("/transactions/import"),
+  );
+  await page.getByRole("button", { name: "Загрузить пакет" }).click();
+  const reply = await imported;
+  expect(reply.status()).toBe(201);
+  const [created] = await reply.json();
+  expect(created.assessment.risk).toBe("HIGH");
+  await expect(
+    page.getByRole("link", { name: external, exact: true }),
+  ).toBeVisible();
+  await nav(page, "Предупреждения");
+  const alert = page
+    .getByRole("row")
+    .filter({ hasText: created.transaction.slice(0, 8) });
+  await expect(alert).toHaveCount(1);
+  await expect(alert.getByRole("link", { name: /SX-/ })).toBeVisible();
+
+  await nav(page, "Правила");
+  await swap(page, "rules");
+  await page.getByLabel("threshold", { exact: true }).fill("16000000");
+  const reason = "Проверка публикации " + external;
+  await page.getByLabel("Обоснование", { exact: true }).fill(reason);
+  await page.getByRole("button", { name: "Создать черновик" }).click();
+  const version = page.getByRole("row").filter({ hasText: reason });
+  await expect(version.getByText("Черновик", { exact: true })).toBeVisible();
+  await version.getByRole("button", { name: "Передать", exact: true }).click();
+  await expect(
+    version.getByText("На согласовании", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    version.getByRole("button", { name: "Опубликовать" }),
+  ).toHaveCount(0);
+  await swap(page, "manager");
+  await version.getByRole("button", { name: "Опубликовать" }).click();
+  await expect(
+    version.getByText("Опубликована", { exact: true }),
+  ).toBeVisible();
 });
