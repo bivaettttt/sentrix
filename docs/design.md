@@ -36,3 +36,41 @@ A fraud operations team needs to explain why a transaction was flagged, reproduc
 | BR-08 | Metrics distinguish rule hits, risks, alerts, cases and analyst outcomes |
 
 Glossary. A transaction is a normalized synthetic event. An assessment is a reproducible scoring run. An alert is an assessment that merits review. A case groups alerts. Evidence records analyst context. A decision is a human conclusion for a specific case revision.
+
+## Use cases and permissions
+
+| ID | Main path | Alternate |
+| --- | --- | --- |
+| UC-01 | Operations user sends a single or batched synthetic event | Invalid data returns 422. A changed event replay returns 409. A lab fault returns 503 and rolls back |
+| UC-02 | Manager assigns an alert group, analyst triages, investigates, adds evidence and submits | Reviewer returns a finding to investigation. A stale revision returns 409 |
+| UC-03 | Rules administrator compares a candidate on fixed features, creates a draft and submits | Invalid parameters return 422. A manager publishes a newer submitted version |
+| UC-04 | Administrator runs an experiment in an isolated environment | An ordinary deployment rejects the experiment endpoint. Simultaneous lab runs conflict |
+
+| Role | Main permissions |
+| --- | --- |
+| Analyst | Read operations and assigned cases, add material and submit a finding |
+| Senior analyst | Read case context, return or close a submitted finding |
+| Manager | Read operational queues, assign, reassess, approve rule versions and read audit |
+| Rules administrator | Read rules, evaluate candidate, create and submit drafts |
+| Administrator | Create users, inspect the audit, run Lab when enabled |
+
+NFR-01 requires atomic persistence and explicit replay semantics. NFR-02 requires object-level authorization and append-only evidence. NFR-03 requires independently reproducible scoring with versions and features. NFR-04 requires a request ID in application errors and successful responses.
+
+## Rule and score policy
+
+| Rule | Condition | Points when true |
+| --- | --- | --- |
+| R-01 | Amount at least candidate threshold | 55 |
+| R-02 | At least configured count in 10 minutes, including current event | 55 |
+| R-03 | Amount at least selected multiple of baseline median | 35 |
+| R-04 | Category departs from profile with at least five earlier observations | 12 |
+| R-05 | Recipient absent from history with at least five earlier observations | 18 |
+| R-06 | UTC hour outside the configured start-inclusive, end-exclusive range | 10 |
+| R-07 | Enough transactions from 80% inclusive to 100% exclusive of a fixed threshold | 35 |
+| R-08 | At least configured count of preceding active factors | 22 |
+
+History uses up to 1,000 events from the prior 30 days, ordered by event time with a stable tie break. The baseline excludes the most recent ten minutes and requires five points. The amount outlier adds 15 points when the deviation is at least six times the greatest of MAD, 10 percent of the median and one kopeck. Velocity and category signals are also retained. Score is capped at 100. LOW is 0–24, MEDIUM 25–49, HIGH 50–79 and CRITICAL 80–100. These are design thresholds for synthetic demonstrations. A rule comparison uses the same saved feature vector on both sides.
+
+The SLA mean uses observed triage and closure events. Late queues count open cases beyond the applicable elapsed deadline. False positive share divides cases closed with that outcome by all closed cases. Rule hits are attributed to the version recorded on each assessment. Analyst decisions remain distinct from ground truth.
+
+[Container view](diagrams/containers.mmd) · [Data model](diagrams/data.mmd) · [Ingestion sequence](diagrams/ingest.mmd) · [Case lifecycle](diagrams/cases.mmd) · [OpenAPI](openapi.json) · [Verification](verification.md)

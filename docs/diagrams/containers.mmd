@@ -1,0 +1,7 @@
+flowchart LR
+  A[Analyst, reviewer, manager and administrator] --> W[React client via nginx]
+  S[Synthetic event source] --> W
+  W --> B[FastAPI modular monolith]
+  B --> R[Detection and investigations]
+  R --> P[(PostgreSQL)]
+  L[Isolated Compose lab] --> W

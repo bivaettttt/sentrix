@@ -1,0 +1,18 @@
+sequenceDiagram
+  actor Source
+  participant API as FastAPI
+  participant Detection as Detection service
+  participant DB as PostgreSQL
+  Source->>API: POST normalized event
+  API->>Detection: Validate and authenticate
+  Detection->>DB: Lock rule set, source event and customer
+  alt same source event and payload
+      DB-->>Source: Original assessment through API
+  else changed payload
+      DB-->>Source: 409 through API
+  else new event
+      Detection->>DB: Get active rules and earlier history
+      Detection->>Detection: Compute features and score
+      Detection->>DB: Insert transaction, assessment, optional alert and audit
+      DB-->>Source: Commit and return assessment through API
+  end

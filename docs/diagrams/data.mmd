@@ -1,0 +1,13 @@
+erDiagram
+  CUSTOMERS ||--o{ ACCOUNTS : owns
+  ACCOUNTS ||--o{ TRANSACTIONS : records
+  TRANSACTIONS ||--o{ ASSESSMENTS : evaluates
+  RULES ||--o{ RULE_VERSIONS : versions
+  RULE_VERSIONS }o--o{ ASSESSMENTS : referenced_in_snapshot
+  ASSESSMENTS ||--o| ALERTS : raises
+  CUSTOMERS ||--o{ CASES : scoped_by
+  CASES ||--o{ ALERTS : groups
+  CASES ||--o{ CASE_ENTRIES : records
+  USERS ||--o{ CASE_ENTRIES : writes
+  USERS ||--o{ SESSIONS : authenticates
+  USERS ||--o{ RECEIPTS : owns
